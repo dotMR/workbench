@@ -18,26 +18,42 @@ data = data.replace(" ","")
 for w in data.split(','):
 	numProcessed = numProcessed + 1
 	scoreToAdd = 0
-	if "_DONT_KNOW" in w:
+	if ((("_DONT_KNOW" in w) or ("_MISSING" in w) or ("null" in w))):
 		numMissing = numMissing + 1
-	elif "_MISSING" in w:
-		numMissing = numMissing + 1
-	elif "null" in w:
-		numMissing = numMissing + 1
+	elif (("0pt" in w) or ("SCORE_ZERO" in w)):
+		scoreToAdd = 0
 	elif "_SCORE_ONE" in w:
 		scoreToAdd = 1
 	elif "_ZEROpoint5" in w:
 		scoreToAdd = 0.5
 	elif "_1pt" in w:
 		scoreToAdd = 1
+	elif "_0point1" in w:
+		scoreToAdd = 0.1
+	elif "_0point2" in w:
+		scoreToAdd = 0.2
 	elif "_0point25" in w:
 		scoreToAdd = 0.25
+	elif "_0point3" in w:
+		scoreToAdd = 0.3
+	elif "_0point33" in w:
+		scoreToAdd = 0.33
+	elif "_0point4" in w:
+		scoreToAdd = 0.4
 	elif "_0point5" in w:
 		scoreToAdd = 0.5
+	elif "_0point6" in w:
+		scoreToAdd = 0.6
+	elif "_0point66" in w:
+		scoreToAdd = 0.66
+	elif "_0point7" in w:
+		scoreToAdd = 0.7
 	elif "_0point75" in w:
 		scoreToAdd = 0.75
-	elif (("0pt" in w) or ("SCORE_ZERO" in w)):
-		scoreToAdd = 0
+	elif "_0point8" in w:
+		scoreToAdd = 0.8
+	elif "_0point9" in w:
+		scoreToAdd = 0.9
 	else:
 		print 'no case found for {}'.format(w)
 	totalScore = totalScore + scoreToAdd
@@ -45,7 +61,7 @@ for w in data.split(','):
 numAnswered = numProcessed - numMissing
 
 print 'Missing: {0} of {1}\nTotal Points: {2}'.format(numMissing, numProcessed, totalScore)
-if numAnswered < 13:
+if numMissing > 13:
 	print 'Score: n/a'
 else:
 	print 'Score {0}'.format(round((totalScore/numAnswered)*100))
