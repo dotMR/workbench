@@ -30,26 +30,26 @@ for w in data.split(','):
 		scoreToAdd = 1
 	elif "_0point1" in w:
 		scoreToAdd = 0.1
-	elif "_0point2" in w:
-		scoreToAdd = 0.2
 	elif "_0point25" in w:
 		scoreToAdd = 0.25
-	elif "_0point3" in w:
-		scoreToAdd = 0.3
+	elif "_0point2" in w:
+		scoreToAdd = 0.2
 	elif "_0point33" in w:
 		scoreToAdd = 0.33
+	elif "_0point3" in w:
+		scoreToAdd = 0.3
 	elif "_0point4" in w:
 		scoreToAdd = 0.4
 	elif "_0point5" in w:
 		scoreToAdd = 0.5
-	elif "_0point6" in w:
-		scoreToAdd = 0.6
 	elif "_0point66" in w:
 		scoreToAdd = 0.66
-	elif "_0point7" in w:
-		scoreToAdd = 0.7
+	elif "_0point6" in w:
+		scoreToAdd = 0.6
 	elif "_0point75" in w:
 		scoreToAdd = 0.75
+	elif "_0point7" in w:
+		scoreToAdd = 0.7
 	elif "_0point8" in w:
 		scoreToAdd = 0.8
 	elif "_0point9" in w:
