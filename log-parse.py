@@ -3,6 +3,7 @@
 import operator
 from collections import Counter
 import sys
+import config
 
 fileToLoad = "resources/" + sys.argv[1] + ".in"
 
@@ -36,60 +37,8 @@ def updateRunningTotalDictionary(item, dictionary):
 	else:
 		dictionary[item] = [1]
 
-def parseLog(filename):
-	numQueries = 0
-	linesProcessed = 0
-	totalQueryTime = 0
-	memcachedHits = 0
-	memcachedMisses = 0
-	cacheFlushes = 0
-	numSoapQueries = 0
-
-	soap_list = dict()
-	query_list = dict()
-	cache_list = dict()
-	time_in_query_list = dict()
-	miss_list = dict()
-	flush_list = dict()
-	
-	with open (filename, "r") as f:
-	    for line in f:
-			linesProcessed = linesProcessed + 1
-			if ("SOAP" in line):
-				numSoapQueries = numSoapQueries + 1
-				query, execTime = processPerfLogLine(line, 38)				
-				if query in soap_list:
-					numExecs = int(soap_list[query][0]) + 1
-					totalExecTime = int(soap_list[query][1]) + int(queryTime)
-					soap_list[query] = [numExecs, totalExecTime]
-				else:
-					soap_list[query] = [1, queryTime]
-			elif ("QUERY" in line):
-				numQueries = numQueries + 1				
-				query, queryTime = processPerfLogLine(line, 38)
-				totalQueryTime = totalQueryTime + int(queryTime)
-				if query in query_list:
-					numExecs = int(query_list[query][0]) + 1
-					totalExecTime = int(query_list[query][1]) + int(queryTime)
-					query_list[query] = [numExecs, totalExecTime]
-					time_in_query_list[query] = int(totalExecTime)
-				else:
-					query_list[query] = [1, queryTime]
-					time_in_query_list[query] = int(queryTime)					
-			elif("Cache hit." in line):
-				memcachedHits = memcachedHits + 1				
-				cached_query = processMemcachedLine(line, 53)
-				updateRunningTotalDictionary(cached_query, cache_list)
-			elif("Cache miss." in line):
-				memcachedMisses = memcachedMisses + 1
-				miss = processMemcachedLine(line, 54)
-				updateRunningTotalDictionary(miss, miss_list)
-			elif("Cache eviction" in line):
-				cacheFlushes = cacheFlushes + 1
-				flush = processMemcachedLine(line, 58)
-				updateRunningTotalDictionary(flush, flush_list)
-
-	q = Counter(query_list)
+def printResults(filename):
+	q = Counter(config.query_list)
 	print '----------------------------------------------------'
 	print '-- Input File: {0}'.format(filename)
 	print '----------------------------------------------------'
@@ -98,28 +47,28 @@ def parseLog(filename):
 	for item in q.most_common(10):
 		print '{0}\n{1} executions\n{2} msec in query\n{3} avg exec time\n'.format(item[0], item[1][0], item[1][1], round((float(item[1][1])/float(item[1][0])),2))
 
-	t = Counter(time_in_query_list)
+	t = Counter(config.time_in_query_list)
 	print '----------------------------------------------------'
 	print '----- Top 10 Queries (exec time) -----'
 	print '----------------------------------------------------'
 	for item in t.most_common(10):
 		print '{0}\n{1} msec in query\n'.format(item[0], item[1])
 		
-	s = Counter(soap_list)
+	s = Counter(config.soap_list)
 	print '----------------------------------------------------'
 	print '----- Top 10 SOAP requests (exec time) -----'
 	print '----------------------------------------------------'
 	for item in s.most_common(10):
 		print '{0}\n{1} executions\n{2} msec in query\n{3} avg exec time\n'.format(item[0], item[1][0], item[1][1], round((float(item[1][1])/float(item[1][0])),2))
 
-	c = Counter(cache_list)
+	c = Counter(config.cache_list)
 	print '---------------------------------'
 	print '-----   Top 10 Cache Hits   -----'
 	print '---------------------------------'
 	for item in c.most_common(10):
 		print '{0}\n{1} executions\n'.format(item[0], item[1][0])
 		
-	m = Counter(miss_list)
+	m = Counter(config.miss_list)
 	if(m):
 		print '-------------------------------'
 		print '-----   Cache Misses   -----'
@@ -127,7 +76,7 @@ def parseLog(filename):
 		for item in m.most_common(20):
 			print '{0}\n{1} executions\n'.format(item[0], item[1][0])
 		
-	f = Counter(flush_list)
+	f = Counter(config.evict_list)
 	if(f):
 		print '-------------------------------'
 		print '-----   Cache Evictions   -----'
@@ -135,15 +84,55 @@ def parseLog(filename):
 		for item in f.most_common(20):
 			print '{0}\n{1} executions\n'.format(item[0], item[1][0])
 
-	print 'Cache Flushes: {6}\nCache Misses: {0}\nCache Hits: {1}\nDistinct queries: {2}\nTotal queries: {3}\nTotal query time: {4} msec\nLines Processed: {5}\n'.format(memcachedMisses, memcachedHits, len(query_list), numQueries, totalQueryTime, linesProcessed, cacheFlushes)
+	print 'Cache Flushes: {6}\nCache Misses: {0}\nCache Hits: {1}\nDistinct queries: {2}\nTotal queries: {3}\nTotal query time: {4} msec\nSoap Queries: {7}\nLines Processed: {5}\n'.format(config.memcachedMisses, config.memcachedHits, len(config.query_list), config.numQueries, config.totalQueryTime, config.linesProcessed, config.memcachedEvictions, config.numSoapQueries)
+	
+def parseLog(filename):
+	with open (filename, "r") as f:
+	    for line in f:
+			config.linesProcessed = config.linesProcessed + 1
+			if ("SOAP" in line):
+				config.numSoapQueries = config.numSoapQueries + 1
+				query, execTime = processPerfLogLine(line, 38)				
+				if query in config.soap_list:
+					numExecs = int(config.soap_list[query][0]) + 1
+					totalExecTime = int(config.soap_list[query][1]) + int(queryTime)
+					config.soap_list[query] = [numExecs, totalExecTime]
+				else:
+					config.soap_list[query] = [1, queryTime]
+			elif ("QUERY" in line):
+				config.numQueries = config.numQueries + 1				
+				query, queryTime = processPerfLogLine(line, 38)
+				config.totalQueryTime = config.totalQueryTime + int(queryTime)
+				if query in config.query_list:
+					numExecs = int(config.query_list[query][0]) + 1
+					totalExecTime = int(config.query_list[query][1]) + int(queryTime)
+					config.query_list[query] = [numExecs, totalExecTime]
+					config.time_in_query_list[query] = int(totalExecTime)
+				else:
+					config.query_list[query] = [1, queryTime]
+					config.time_in_query_list[query] = int(queryTime)					
+			elif("Cache hit." in line):
+				config.memcachedHits = config.memcachedHits + 1				
+				cached_query = processMemcachedLine(line, 53)
+				updateRunningTotalDictionary(cached_query, config.cache_list)
+			elif("Cache miss." in line):
+				config.memcachedMisses = config.memcachedMisses + 1
+				miss = processMemcachedLine(line, 54)
+				updateRunningTotalDictionary(miss, config.miss_list)
+			elif("Cache eviction" in line):
+				config.memcachedEvictions = config.memcachedEvictions + 1
+				eviction = processMemcachedLine(line, 58)
+				updateRunningTotalDictionary(eviction, config.evict_list)
+
+	printResults(filename)
 
 	# Validate calculations
-	numExecsInList = sum(int(query[0]) for query in query_list.values())
-	totalTimeInList = sum(int(query[1]) for query in query_list.values())
-	# numCacheHitsInList = sum(int(cache[0] for cache in cache_list.values()))
+	numExecsInList = sum(int(query[0]) for query in config.query_list.values())
+	totalTimeInList = sum(int(query[1]) for query in config.query_list.values())
+	# numCacheHitsInList = sum(int(cache[0] for cache in config.cache_list.values()))
 
 	#print '{0} execs {1} total time'.format(numExecsInList, totalTimeInList)
-	if((numQueries != numExecsInList) or (totalQueryTime != totalTimeInList)):
+	if((config.numQueries != numExecsInList) or (config.totalQueryTime != totalTimeInList)):
 		print '[WARNING! inconsistency in num of queries or cache hits]'
 
 parseLog(fileToLoad)	
