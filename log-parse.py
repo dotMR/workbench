@@ -1,15 +1,12 @@
-# Parse application log to count queries
+# Parse application log to monitor app behavior (query times, cache usage, etc)
 # usage: python log-parse.py arg (file name to read without .in)
 import operator
 from collections import Counter
 import sys
 
-#initialLoadFile = "resources/" + sys.argv[1] + "-initial.in"
-#refreshFile = "resources/" + sys.argv[1] + "-refresh.in"
-
 fileToLoad = "resources/" + sys.argv[1] + ".in"
 
-def processLogLine(line, startIndex):
+def processPerfLogLine(line, startIndex):
 	# ex: 17:12:18 11/05/2013  INFO  PerfLogger select * from wbc.MWP_USER where guid = ?,QUERY,654
 	timeIndex = line.rfind(',')
 	execTime = line[(timeIndex+1):].rstrip()
@@ -23,6 +20,21 @@ def processLogLine(line, startIndex):
 	# select * from wbc.MWP_USER where guid = ?
 	
 	return (action, execTime)
+	
+def processMemcachedLine(line, startIndex):
+	# 17:12:18 11/05/2013  INFO  MemcachedCache Cache hit. Get by key 9e222457a1af4e10aa82345396ddee0a from cache memcached value 'ImageAsset [imagePath=null, extension=jpeg, size=6286, individualId=null, getId()=9e222457a1af4e10aa82345396ddee0a]'
+	endDelimiterIndex = line.rfind('[')
+	action = line[startIndex:endDelimiterIndex]
+	action.strip()
+	# Get by key 9e222457a1af4e10aa82345396ddee0a from cache memcached value 'ImageAsset
+	return action
+
+def updateRunningTotalDictionary(item, dictionary):
+	if item in dictionary:
+		numExecs = int(dictionary[item][0]) + 1
+		dictionary[item] = [numExecs]
+	else:
+		dictionary[item] = [1]
 
 def parseLog(filename):
 	numQueries = 0
@@ -32,6 +44,7 @@ def parseLog(filename):
 	memcachedMisses = 0
 	cacheFlushes = 0
 	numSoapQueries = 0
+
 	soap_list = dict()
 	query_list = dict()
 	cache_list = dict()
@@ -43,12 +56,8 @@ def parseLog(filename):
 	    for line in f:
 			linesProcessed = linesProcessed + 1
 			if ("SOAP" in line):
-				timeIndex = line.rfind(',')
-				queryTime = line[(timeIndex+1):].rstrip()
-				formatted = line[38:timeIndex]
-				typeIndex = formatted.rfind(',')
-				query = formatted[:typeIndex].rstrip()
 				numSoapQueries = numSoapQueries + 1
+				query, execTime = processPerfLogLine(line, 38)				
 				if query in soap_list:
 					numExecs = int(soap_list[query][0]) + 1
 					totalExecTime = int(soap_list[query][1]) + int(queryTime)
@@ -56,13 +65,9 @@ def parseLog(filename):
 				else:
 					soap_list[query] = [1, queryTime]
 			elif ("QUERY" in line):
-				timeIndex = line.rfind(',')
-				queryTime = line[(timeIndex+1):].rstrip()
-				formatted = line[38:timeIndex]
-				typeIndex = formatted.rfind(',')
-				query = formatted[:typeIndex].rstrip()
-				numQueries = numQueries + 1
-				totalQueryTime = int(totalQueryTime) + int(queryTime)
+				numQueries = numQueries + 1				
+				query, queryTime = processPerfLogLine(line, 38)
+				totalQueryTime = totalQueryTime + int(queryTime)
 				if query in query_list:
 					numExecs = int(query_list[query][0]) + 1
 					totalExecTime = int(query_list[query][1]) + int(queryTime)
@@ -70,38 +75,19 @@ def parseLog(filename):
 					time_in_query_list[query] = int(totalExecTime)
 				else:
 					query_list[query] = [1, queryTime]
-					time_in_query_list[query] = int(queryTime)
-					
+					time_in_query_list[query] = int(queryTime)					
 			elif("Cache hit." in line):
-				memcachedHits = memcachedHits + 1
-				endDelimiterIndex = line.rfind('[')
-				cached_query = line[53:endDelimiterIndex]
-				cached_query.strip()
-				if cached_query in cache_list:
-					numExecs = int(cache_list[cached_query][0]) + 1
-					cache_list[cached_query] = [numExecs]
-				else:
-					cache_list[cached_query] = [1]
+				memcachedHits = memcachedHits + 1				
+				cached_query = processMemcachedLine(line, 53)
+				updateRunningTotalDictionary(cached_query, cache_list)
 			elif("Cache miss." in line):
 				memcachedMisses = memcachedMisses + 1
-				endDelimiterIndex = line.rfind('[')
-				miss = line[54:endDelimiterIndex]
-				miss.strip()
-				if miss in miss_list:
-					numExecs = int(miss_list[miss][0]) + 1
-					miss_list[miss] = [numExecs]
-				else:
-					miss_list[miss] = [1]
+				miss = processMemcachedLine(line, 54)
+				updateRunningTotalDictionary(miss, miss_list)
 			elif("Cache eviction" in line):
 				cacheFlushes = cacheFlushes + 1
-				endDelimiterIndex = line.rfind('[')
-				flush = line[58:endDelimiterIndex]
-				flush.strip()
-				if flush in flush_list:
-					numExecs = int(flush_list[flush][0]) + 1
-					flush_list[flush] = [numExecs]
-				else:
-					flush_list[flush] = [1]
+				flush = processMemcachedLine(line, 58)
+				updateRunningTotalDictionary(flush, flush_list)
 
 	q = Counter(query_list)
 	print '----------------------------------------------------'
@@ -160,6 +146,4 @@ def parseLog(filename):
 	if((numQueries != numExecsInList) or (totalQueryTime != totalTimeInList)):
 		print '[WARNING! inconsistency in num of queries or cache hits]'
 
-# parseLog(initialLoadFile)
-# parseLog(refreshFile)
 parseLog(fileToLoad)	
